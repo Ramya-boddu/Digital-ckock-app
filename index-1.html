@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Clock with Alarm & Countdown</title>
+
+<style>
+body {
+    margin: 0;
+    height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1470&q=80') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #FFFFFF;
+}
+
+.clock-container {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 35px 50px;
+    border-radius: 20px;
+    text-align: center;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, .2);
+    box-shadow: 0 0 25px rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+}
+
+.time {
+    font-size: 60px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.date {
+    font-size: 28px;
+    color: hsl(226, 88%, 59%);
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+button, select, input {
+    margin: 5px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+button {
+    background-color: #0073e6;
+    color: white;
+}
+
+button:hover {
+    background-color: #005bb5;
+}
+
+#countdownDisplay {
+    color: #FFD700;
+}
+
+#alarmDisplay {
+    color: #00FF00;
+}
+
+.section1 {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr; /* column widths */
+  gap: 20px;
+  align-items: center;
+}
+
+.section2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section3 {
+   color: white;
+  font-weight: 500;
+  min-width: 110px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="clock-container">
+    <div class="time" id="clock">00:00:00</div>
+    <div class="date" id="date"></div>
+
+    <div class="section 1">
+        <label>Format:</label>
+        <select id="format">
+            <option value="12">12-Hour</option>
+            <option value="24">24-Hour</option>
+        </select>
+        <button id="startBtn">Start</button>
+        <button id="stopBtn">Stop</button>
+    </div>
+
+    <div class="section 2">
+        <label>Alarm:</label>
+        <input type="number" id="alarmHour" placeholder="HH" min="1" max="12">
+        <input type="number" id="alarmMinute" placeholder="MM" min="0" max="59">
+        <select id="alarmAmPm">
+            <option>AM</option>
+            <option>PM</option>
+        </select>
+        <button id="setAlarmBtn">Set Alarm</button>
+        <p id="alarmDisplay"></p>
+    </div>
+    <button id="stopAlarmBtn">Stop Alarm</button>
+    
+    <button id="snoozeAlarmBtn">Snooze 5 min</button>
+
+
+    <div class="section 3">
+        <label>Countdown (sec):</label>
+        <input type="number" id="countdownInput">
+        <button id="startCountdownBtn">Start</button>
+        <p id="countdownDisplay"></p>
+    </div>
+</div>
+<script>
+let clockInterval = null;
+let alarmHour = null;
+let alarmMinute = null;
+let alarmAmPm = null;
+let alarmRinging = false;
+
+const alarmSound = new Audio('https://www.soundjay.com/buttons/sounds/beep-07.mp3');
+alarmSound.loop = true;
+
+/* UPDATE CLOCK */
+function updateClock() {
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+    const format = document.getElementById('format').value;
+
+    let displayHours = hours;
+    let ampm = '';
+
+    if (format === '12') {
+        ampm = hours >= 12 ? 'PM' : 'AM';
+        displayHours = hours % 12 || 12;
+    }
+
+    document.getElementById('clock').textContent =
+        `${String(displayHours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}` +
+        (format === '12' ? ` ${ampm}` : '');
+
+    document.getElementById('date').textContent =
+        now.toLocaleDateString(undefined, {
+            weekday:'long', year:'numeric', month:'long', day:'numeric'
+        });
+
+    /* 🔔 ALARM CHECK (SECOND-INDEPENDENT) */
+    if (alarmHour !== null && !alarmRinging) {
+        const h12 = hours % 12 || 12;
+        const ap = hours >= 12 ? 'PM' : 'AM';
+
+        if (h12 === alarmHour && minutes === alarmMinute && ap === alarmAmPm) {
+            alarmRinging = true;
+            alarmSound.play();
+            document.getElementById('alarmDisplay').textContent = '🔔 Alarm Ringing';
+        }
+    }
+}
+
+/* CLOCK CONTROL */
+function startClock() {
+    if (!clockInterval) {
+        updateClock();
+        clockInterval = setInterval(updateClock, 1000);
+    }
+}
+
+function stopClock() {
+    clearInterval(clockInterval);
+    clockInterval = null;
+}
+
+/* BUTTON EVENTS */
+document.getElementById('startBtn').onclick = startClock;
+document.getElementById('stopBtn').onclick = stopClock;
+document.getElementById('format').onchange = updateClock;
+
+/* ✅ SET ALARM – FIXED */
+document.getElementById('setAlarmBtn').onclick = () => {
+    const h = parseInt(document.getElementById('alarmHour').value);
+    const m = parseInt(document.getElementById('alarmMinute').value);
+    const ap = document.getElementById('alarmAmPm').value;
+
+    if (isNaN(h) || isNaN(m)) {
+        document.getElementById('alarmDisplay').textContent = '⚠ Set valid alarm time';
+        return;
+    }
+
+    alarmHour = h;
+    alarmMinute = m;
+    alarmAmPm = ap;
+    alarmRinging = false;
+
+    document.getElementById('alarmDisplay').textContent =
+        `⏰ Alarm set for ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`;
+};
+document.getElementById('stopAlarmBtn').onclick = () => {
+    alarmSound.pause();      // stop sound
+    alarmSound.currentTime = 0; // reset sound
+    alarmRinging = false;
+    alarmHour = null;        // clear alarm
+
+    document.getElementById('alarmDisplay').textContent = '🔕 Alarm stopped';
+};
+ document.getElementById('snoozeAlarmBtn').onclick = () => {
+    // stop current alarm sound
+    alarmSound.pause();
+    alarmSound.currentTime = 0;
+
+    // get current time
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5); // ⏰ add 5 minutes
+
+    let h = now.getHours();
+    let m = now.getMinutes();
+    let ap = h >= 12 ? 'PM' : 'AM';
+
+    h = h % 12 || 12; // convert to 12-hour format
+
+    // reset alarm
+    alarmHour = h;
+    alarmMinute = m;
+    alarmAmPm = ap;
+    alarmRinging = false;
+
+    document.getElementById('alarmDisplay').textContent =
+        `😴 Snoozed till ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`;
+};
+let countdownTimer = null;
+
+document.getElementById('startCountdownBtn').onclick = () => {
+    let timeLeft = parseInt(document.getElementById('countdownInput').value);
+    const display = document.getElementById('countdownDisplay');
+
+    if (isNaN(timeLeft) || timeLeft <= 0) {
+        display.textContent = '⚠ Enter valid seconds';
+        return;
+    }
+
+    // clear old timer if any
+    clearInterval(countdownTimer);
+
+    display.textContent = `⏳ ${timeLeft} sec remaining`;
+
+    countdownTimer = setInterval(() => {
+        timeLeft--;
+        display.textContent = `⏳ ${timeLeft} sec remaining`;
+
+        if (timeLeft <= 0) {
+            clearInterval(countdownTimer);
+            countdownSound.play();
+            display.textContent = '⏳ Countdown Finished';
+        }
+    }, 1000);
+};
+startClock();
+</script>
+
+
+</body>
+</html>
